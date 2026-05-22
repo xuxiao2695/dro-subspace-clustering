@@ -41,14 +41,33 @@ COMMON_FACTOR_NOISE_RANGE = (1.0, 1.0)
 NO_GLOBAL_FACTOR_RANGE = (0.0, 0.0)
 ADDITIONAL_NOISE_RANGE = (0.1, 0.1)
 METHOD_CHOICES = {"dro", "lasso", "sqrt_lasso", "cord", "mfc", "kmedoids", "kmeans"}
+MFC_PREFIX = "mfc_"
 
 
 def parse_methods(methods: str) -> list[str]:
     selected = [method.strip().lower() for method in methods.split(",") if method.strip()]
-    unknown = sorted(set(selected) - METHOD_CHOICES)
+    unknown = sorted(method for method in selected if method not in METHOD_CHOICES and _parse_mfc_method(method) is None)
     if unknown:
         raise ValueError(f"Unknown method(s): {', '.join(unknown)}.")
     return selected
+
+
+def _parse_mfc_method(method: str) -> tuple[int, int] | None:
+    if method == "mfc":
+        return (1, 1)
+    if not method.startswith(MFC_PREFIX):
+        return None
+    factor_spec = method.removeprefix(MFC_PREFIX)
+    if "x" not in factor_spec:
+        return None
+    global_text, local_text = factor_spec.split("x", maxsplit=1)
+    if not global_text.isdigit() or not local_text.isdigit():
+        return None
+    n_factors_global = int(global_text)
+    n_factors_local = int(local_text)
+    if n_factors_global < 0 or n_factors_local <= 0:
+        return None
+    return n_factors_global, n_factors_local
 
 
 def scenario_configs(scenario: str) -> list[tuple[str, tuple[float, float], tuple[float, float]]]:
@@ -118,8 +137,14 @@ def run_method(
             distinguish_direction=False,
         )
         predicted = cluster_list_to_membership(clusters)
-    elif method == "mfc":
-        predicted = multifactor_clustering(samples, config.n_clusters)
+    elif mfc_spec := _parse_mfc_method(method):
+        n_factors_global, n_factors_local = mfc_spec
+        predicted = multifactor_clustering(
+            samples,
+            config.n_clusters,
+            n_factors_global=n_factors_global,
+            n_factors_local=n_factors_local,
+        )
     elif method == "kmedoids":
         predicted = kmedoids_clustering(samples, config.n_clusters)
     elif method == "kmeans":

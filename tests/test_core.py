@@ -15,6 +15,7 @@ from dro_subspace.cord import cluster_list_to_membership, cord_clustering, compu
 from dro_subspace.dro import compute_dro_coefficients, dro_sqrt_delta
 from dro_subspace.metrics import clustering_score
 from dro_subspace.synthetic import make_cluster_labels, normalize_design, sample_random_subspace
+from scripts.run_synthetic_experiments import parse_methods
 
 
 def test_sample_random_subspace_is_deterministic() -> None:
@@ -128,3 +129,7 @@ def test_multifactor_clustering_assigns_every_item() -> None:
     score = clustering_score(np.array([0, 0, 1, 1]), predicted)
     assert predicted.shape == (4,)
     assert score.accuracy == 1.0
+
+
+def test_method_parser_accepts_mfc_variants() -> None:
+    assert parse_methods("dro,mfc,mfc_1x1,mfc_2x3") == ["dro", "mfc", "mfc_1x1", "mfc_2x3"]

@@ -23,7 +23,7 @@ pip install -e ".[baselines]"
 ```bash
 python scripts/run_ablation_studies.py --ablation all --n-experiments 10
 python scripts/run_synthetic_experiments.py --scenario main --n-experiments 10
-python scripts/run_synthetic_experiments.py --scenario main --methods dro,lasso,mfc,cord,kmedoids
+python scripts/run_synthetic_experiments.py --scenario main --methods dro,lasso,mfc_1x1,mfc_2x2,cord,kmedoids
 python scripts/run_face_experiments.py --data-dir data/external/CroppedYalePNG
 ```
 
