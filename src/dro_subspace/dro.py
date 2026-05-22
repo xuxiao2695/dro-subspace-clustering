@@ -27,7 +27,7 @@ DEFAULT_STEP_LEARNING_RATE = 0.01
 DEFAULT_STEP_LEARNING_RATE_DECAY = 0.01
 DEFAULT_STEP_NESTEROV_GAMMA = 0.9
 DEFAULT_STEP_ITERATIONS = 5000
-DEFAULT_OUTER_ITERATIONS = 1000
+DEFAULT_OUTER_ITERATIONS = 5000
 DEFAULT_RESTARTS = 2
 
 logger = logging.getLogger(__name__)
@@ -237,6 +237,7 @@ def compute_dro_coefficients(
     n_simulations: int = 1000,
     seed: int = 0,
     admm_rho: float = DEFAULT_ADMM_RHO,
+    max_outer_iterations: int = DEFAULT_OUTER_ITERATIONS,
 ) -> FloatArray:
     """Compute a DRO spectral self-regression matrix for normalized samples."""
     covariance = np.cov(samples.T)
@@ -251,4 +252,10 @@ def compute_dro_coefficients(
         diagonal_inverse=True,
         use_simple_z=True,
     )
-    return spectral_regression_admm(samples, penalty=penalty, rho=admm_rho, step_seed=seed)
+    return spectral_regression_admm(
+        samples,
+        penalty=penalty,
+        rho=admm_rho,
+        max_outer_iterations=max_outer_iterations,
+        step_seed=seed,
+    )

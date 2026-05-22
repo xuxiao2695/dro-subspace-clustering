@@ -34,6 +34,7 @@ DEFAULT_SEED_START = 2021
 DEFAULT_NOISE_RANGE = (0.0, 0.5)
 DEFAULT_RHO_RANGE = (0.0, 0.5)
 DEFAULT_N_SIMULATIONS = 1000
+DEFAULT_MAX_OUTER_ITERATIONS = 5000
 
 ADMM_RHO_VALUES = (0.01, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0)
 MISSPECIFIED_K_VALUES = (10, 15, 20, 23, 25, 27, 30, 35, 40)
@@ -50,6 +51,7 @@ class ExperimentConfig:
     noise_range: tuple[float, float] = DEFAULT_NOISE_RANGE
     rho_range: tuple[float, float] = DEFAULT_RHO_RANGE
     n_simulations: int = DEFAULT_N_SIMULATIONS
+    max_outer_iterations: int = DEFAULT_MAX_OUTER_ITERATIONS
 
 
 def _load_records(path: Path) -> list[dict[str, RecordValue]]:
@@ -100,6 +102,7 @@ def compute_trial_scores(
         n_simulations=config.n_simulations,
         seed=seed,
         admm_rho=admm_rho,
+        max_outer_iterations=config.max_outer_iterations,
     )
     predicted = spectral_clustering(coefs, clustering_k, config.n_samples)
     score = clustering_score(labels, predicted)
@@ -145,6 +148,7 @@ def run_misspecified_k_ablation(config: ExperimentConfig, seeds: list[int], outp
             n_simulations=config.n_simulations,
             seed=_trial_seed(seed, 200),
             admm_rho=1.0,
+            max_outer_iterations=config.max_outer_iterations,
         )
         for k_test in tqdm(MISSPECIFIED_K_VALUES, desc=f"K seed={seed}", leave=False):
             if (seed, int(k_test)) in done:
@@ -195,6 +199,7 @@ def run_ablation_suite(
     seed_start: int = DEFAULT_SEED_START,
     output_dir: Path = DEFAULT_RESULTS_DIR,
     n_simulations: int = DEFAULT_N_SIMULATIONS,
+    max_outer_iterations: int = DEFAULT_MAX_OUTER_ITERATIONS,
 ) -> dict[str, pd.DataFrame]:
     """Run selected ablations and return result tables keyed by ablation name."""
     if ablation not in {"rho", "K", "alpha", "all"}:
@@ -202,7 +207,7 @@ def run_ablation_suite(
     if n_experiments <= 0:
         raise ValueError("n_experiments must be positive.")
 
-    config = ExperimentConfig(n_simulations=n_simulations)
+    config = ExperimentConfig(n_simulations=n_simulations, max_outer_iterations=max_outer_iterations)
     seeds = list(range(seed_start, seed_start + n_experiments))
     output_dir.mkdir(parents=True, exist_ok=True)
     results: dict[str, pd.DataFrame] = {}

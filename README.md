@@ -17,6 +17,7 @@ python scripts/run_ablation_studies.py --ablation all --n-experiments 10
 ```
 
 Results are written to `results/ablation_results/`. The checked-in CSV files are small summary outputs; large intermediate matrices and raw datasets are intentionally excluded.
+Use `--max-outer-iterations` to raise or lower the bounded ADMM convergence budget.
 
 ## Data
 
