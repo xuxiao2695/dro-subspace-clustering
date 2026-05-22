@@ -4,6 +4,10 @@ Reference code for the ICML submission on distributionally robust subspace clust
 The repository contains the synthetic-data generator, DRO spectral self-regression solver,
 source-grounded baseline helpers including MFC, clustering metrics, and compact reproduction scripts.
 
+## Authors
+
+Kaizheng Wang, Xiao Xu, and Xunyu Zhou.
+
 ## Setup
 
 ```bash
