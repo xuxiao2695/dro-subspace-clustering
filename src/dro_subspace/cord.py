@@ -13,16 +13,12 @@ from collections.abc import Hashable, Iterable, Sequence
 
 import numpy as np
 import pandas as pd
-import scipy.linalg
 import scipy.optimize
 from numpy.typing import NDArray
 
 FloatArray = NDArray[np.float64]
 IntArray = NDArray[np.int_]
 Cluster = list[Hashable]
-
-DEFAULT_TARGET_CLUSTER_STEP_SIZE = 0.5
-DEFAULT_TARGET_CLUSTER_MIN_STEP_SIZE = 1e-6
 
 logger = logging.getLogger(__name__)
 
@@ -36,24 +32,49 @@ def _as_correlation_frame(corr: FloatArray | pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(values)
 
 
-def compute_cord_values(corr: FloatArray | pd.DataFrame) -> tuple[pd.DataFrame, FloatArray]:
-    """Compute the CORD matrix from correlations, matching the current source implementation."""
+def compute_cord_values(
+    corr: FloatArray | pd.DataFrame,
+    distinguish_direction: bool = True,
+) -> tuple[pd.DataFrame, FloatArray | None]:
+    """Compute the CORD matrix from correlations, matching the complete old source implementation."""
     corr_frame = _as_correlation_frame(corr)
     dim = corr_frame.shape[0]
     corr_values = corr_frame.to_numpy(copy=True)
     np.fill_diagonal(corr_values, 0.0)
-    expanded = np.expand_dims(corr_values, axis=1)
-    diff = np.abs(expanded - np.transpose(expanded, axes=(1, 0, 2)))
-    diff.flat[[(i * dim + j) * dim + i for i in range(dim) for j in range(dim)]] = 0.0
-    diff.flat[[(i * dim + j) * dim + j for i in range(dim) for j in range(dim)]] = 0.0
-    cord = diff.max(axis=2)
+
+    if dim <= 1000:
+        expanded = np.expand_dims(corr_values, axis=1)
+        transposed = np.transpose(expanded, axes=(1, 0, 2))
+        if distinguish_direction:
+            diff = np.abs(expanded - transposed)
+        else:
+            diff = np.minimum(np.abs(expanded - transposed), np.abs(expanded + transposed))
+        diff.flat[[(i * dim + j) * dim + i for i in range(dim) for j in range(dim)]] = 0.0
+        diff.flat[[(i * dim + j) * dim + j for i in range(dim) for j in range(dim)]] = 0.0
+        cord = diff.max(axis=2)
+    else:
+        diff = None
+        cord = np.zeros_like(corr_values)
+        for first_idx in range(dim - 1):
+            for second_idx in range(first_idx + 1, dim):
+                first_profile = np.delete(corr_values[first_idx, :], [first_idx, second_idx])
+                second_profile = np.delete(corr_values[second_idx, :], [first_idx, second_idx])
+                if distinguish_direction:
+                    distance = np.abs(first_profile - second_profile).max()
+                else:
+                    distance = np.minimum(
+                        np.abs(first_profile - second_profile),
+                        np.abs(first_profile + second_profile),
+                    ).max()
+                cord[first_idx, second_idx] = distance
+                cord[second_idx, first_idx] = distance
     np.fill_diagonal(cord, np.inf)
     cord_frame = pd.DataFrame(cord, index=corr_frame.index, columns=corr_frame.columns)
     return cord_frame, diff
 
 
 def threshold_greedy_procedure(distance: pd.DataFrame, thresh: float, min_or_max: str = "min") -> list[Cluster]:
-    """Group items greedily using the CORD threshold rule from the current source implementation."""
+    """Group items greedily using the CORD threshold rule from the complete old source implementation."""
     if min_or_max not in {"min", "max"}:
         raise ValueError("min_or_max must be either 'min' or 'max'.")
     remaining = set(distance.columns)
@@ -99,7 +120,7 @@ def data_splitting_loss(
     diff2: FloatArray,
     min_or_max: str = "min",
 ) -> float:
-    """Evaluate the data-splitting CORD threshold loss from the current source implementation."""
+    """Evaluate the data-splitting CORD threshold loss from the complete old source implementation."""
     clustering_mask = distance2.copy()
     clustering_mask[:] = 1.0
     clustering = threshold_greedy_procedure(distance1, thresh, min_or_max=min_or_max)
@@ -155,44 +176,59 @@ def cord_clustering(
     search_range: tuple[float, float] | None = None,
     search_Ns: int | None = None,
     min_or_max: str = "min",
+    distinguish_direction: bool = True,
 ) -> list[Cluster]:
-    """Run the CORD greedy clustering routine ported from the current repository."""
+    """Run the CORD greedy clustering routine ported from the complete old source tree."""
     corr_frame = _as_correlation_frame(corr)
-    cord, _ = compute_cord_values(corr_frame)
+    cord, _ = compute_cord_values(corr_frame, distinguish_direction=distinguish_direction)
     dim = corr_frame.shape[0]
     if n_clusters is not None:
         if n_clusters <= 0 or n_clusters > dim:
             raise ValueError("n_clusters must be positive and no larger than the matrix dimension.")
         clustering: list[Cluster] = [[] for _ in range(dim)]
-        step_size = DEFAULT_TARGET_CLUSTER_STEP_SIZE
-        thresh = step_size * np.log(dim) / dim
-        while len(clustering) != n_clusters and step_size >= DEFAULT_TARGET_CLUSTER_MIN_STEP_SIZE:
+        low = 0.0
+        high = 2.0
+        while True:
+            thresh = (high + low) / 2.0
             clustering = threshold_greedy_procedure(cord, thresh, min_or_max=min_or_max)
+            if high - low < 1e-8 or len(clustering) == n_clusters:
+                logger.info("CORD threshold selected: %.8g", thresh)
+                return clustering
             if len(clustering) < n_clusters:
-                step_size = step_size / 10.0
-                thresh -= 9.0 * step_size * np.log(dim) / dim
-            else:
-                thresh += step_size * np.log(dim) / dim
-        logger.info("CORD threshold selected: %.8g", thresh)
-        return clustering
+                high = thresh
+            elif len(clustering) > n_clusters:
+                low = thresh
 
     if calibration != "avg_intra_cluster_corr":
         raise ValueError("Only avg_intra_cluster_corr calibration is implemented in the current source.")
     if search_range is None or search_Ns is None:
         raise ValueError("search_range and search_Ns are required when n_clusters is not fixed.")
-    threshold = scipy.optimize.brute(
-        avg_corr_loss_wrapper,
-        ranges=[search_range],
-        Ns=search_Ns,
-        finish=None,
-        args=(cord, corr_frame, min_or_max, min_clusters, max_clusters),
-        workers=-1,
-    )
-    logger.info("CORD threshold selected: %s", threshold)
-    return threshold_greedy_procedure(cord, float(np.asarray(threshold).reshape(-1)[0]), min_or_max=min_or_max)
+    search_range = (max(0.0, search_range[0]), min(2.0, search_range[1]))
+    clustering: list[Cluster] = []
+    if min_clusters is None or max_clusters is None:
+        raise ValueError("min_clusters and max_clusters are required when n_clusters is not fixed.")
+    while len(clustering) > max_clusters or len(clustering) < min_clusters:
+        threshold = scipy.optimize.brute(
+            avg_corr_loss_wrapper,
+            ranges=[search_range],
+            Ns=search_Ns,
+            finish=None,
+            args=(cord, corr_frame, min_or_max, min_clusters, max_clusters),
+            workers=-1,
+        )
+        threshold_value = float(np.asarray(threshold).reshape(-1)[0])
+        clustering = threshold_greedy_procedure(cord, threshold_value, min_or_max=min_or_max)
+        if len(clustering) > max_clusters:
+            search_range = (search_range[1], search_range[1] * 2.0)
+        elif len(clustering) < min_clusters:
+            search_range = (search_range[0] * 0.5, search_range[0])
+    return clustering
 
 
-def cluster_list_to_membership(clusters: Sequence[Sequence[Hashable]], items: Iterable[Hashable] | None = None) -> IntArray:
+def cluster_list_to_membership(
+    clusters: Sequence[Sequence[Hashable]],
+    items: Iterable[Hashable] | None = None,
+) -> IntArray:
     """Convert CORD cluster lists to one integer label per item."""
     if items is None:
         flattened = [item for cluster in clusters for item in cluster]
@@ -214,15 +250,18 @@ def cluster_list_to_membership(clusters: Sequence[Sequence[Hashable]], items: It
     return labels
 
 
-def zipf_weibull_estimation(ret_df: pd.DataFrame, k: int) -> tuple[FloatArray, FloatArray]:
-    """Estimate CORD tail parameters, preserving the helper from the current source tree."""
+def zipf_weibull_estimation(ret_df: pd.DataFrame, k: int) -> tuple[pd.Series, pd.Series]:
+    """Estimate CORD tail parameters, preserving the helper from the complete old source tree."""
     if k <= 0:
         raise ValueError("k must be positive.")
-    centered = ret_df - ret_df.mean()
+    import scipy.linalg
+
+    company_ids = ret_df.columns
+    centered = ret_df - ret_df.fillna(0).mean()
     sqrt_precision = scipy.linalg.sqrtm(scipy.linalg.inv(centered.cov()))
     whitened_ret = np.matmul(sqrt_precision, centered.T).T
     n_samples = whitened_ret.shape[0]
-    topk = np.array([whitened_ret[column].abs().nlargest(k).values.tolist() for column in whitened_ret.columns])
+    topk = np.array([whitened_ret[column].abs().nlargest(k + 1).values[1:].tolist() for column in whitened_ret.columns])
     x_values = np.log(np.log(2 * n_samples / np.arange(1, k + 1)))
     xbar = x_values.mean()
     denominator = np.dot(x_values - xbar, x_values - xbar)
@@ -231,4 +270,4 @@ def zipf_weibull_estimation(ret_df: pd.DataFrame, k: int) -> tuple[FloatArray, F
     theta = np.matmul(y_values - ybar, x_values - xbar) / denominator
     l_prime = np.exp(ybar - theta * xbar)
     alpha = 1.0 / theta
-    return alpha, l_prime
+    return pd.Series(alpha.flatten(), index=company_ids), pd.Series(l_prime.flatten(), index=company_ids)

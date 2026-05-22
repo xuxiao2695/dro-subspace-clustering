@@ -15,15 +15,16 @@ The original scripts expect daily S&P 500 data with these files:
 
 ## Source Provenance
 
-The compact release does not reimplement the full backtester because the current checkout is not a complete standalone
-source for the manuscript run:
+The compact release does not repackage the full backtester as a standalone script because the manuscript run depends on
+licensed data, old local package state, and large intermediates:
 
 - `code/subspace_clustering/portfolio.py` and `portfolio_analysis.ipynb` define the experiment configuration.
 - `code/portfolio-backtesting/portfolio_backtesting/portfolio.py` contains the rolling backtest shell.
 - `code/portfolio-backtesting/portfolio_backtesting/stock_selection/selection.py` contains the low-volatility
   representative stock selection rule used by the manuscript configuration.
-- The notebooks reference an older installed `portfolio_backtesting.stock_selection.clustering.Cord` and
-  `SubspaceClustering.compute_regression` API that is not present as source in this checkout.
+- The archived `portfolio_backtesting.stock_selection.clustering` source contains the ACC/CORD,
+  Lasso nodewise-regression, square-root Lasso, k-medoids, and hierarchical clustering helpers used by the
+  portfolio code. The compact release ports the algorithmic helpers needed by the reproduction scripts.
 
 For that reason, this release documents the financial experiment and preserves the available source-grounded DRO/CORD
 building blocks, but does not include a substitute portfolio backtest script.

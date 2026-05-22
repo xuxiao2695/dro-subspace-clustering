@@ -89,3 +89,18 @@ def test_cord_clustering_assigns_every_item() -> None:
     assert diff.shape == (4, 4, 4)
     assert membership.shape == (4,)
     assert set(membership.tolist()) == {0, 1}
+
+
+def test_cord_signed_distance_matches_modified_acc_rule() -> None:
+    corr = np.array(
+        [
+            [1.0, 0.0, 0.7, -0.6],
+            [0.0, 1.0, -0.7, 0.6],
+            [0.7, -0.7, 1.0, 0.1],
+            [-0.6, 0.6, 0.1, 1.0],
+        ]
+    )
+    directional, _ = compute_cord_values(corr, distinguish_direction=True)
+    signed, _ = compute_cord_values(corr, distinguish_direction=False)
+    assert signed.loc[0, 1] < directional.loc[0, 1]
+    assert signed.loc[0, 1] == 0.0

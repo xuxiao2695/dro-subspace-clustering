@@ -18,6 +18,12 @@ dependencies = [
     "tqdm>=4.66",
 ]
 
+[project.optional-dependencies]
+baselines = [
+    "cvxpy>=1.4",
+    "pyclustering>=0.10.1",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

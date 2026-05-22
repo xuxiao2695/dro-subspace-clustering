@@ -17,6 +17,7 @@ import pandas as pd
 from sklearn.cluster import KMeans
 from tqdm.auto import tqdm
 
+from dro_subspace.baselines import kmedoids_clustering
 from dro_subspace.cord import cluster_list_to_membership, cord_clustering
 from dro_subspace.dro import compute_dro_coefficients
 from dro_subspace.experiments import (
@@ -28,6 +29,7 @@ from dro_subspace.experiments import (
     generate_trial,
 )
 from dro_subspace.metrics import clustering_score, spectral_clustering
+from dro_subspace.nodewise import compute_lasso_coefficients, compute_sqrt_lasso_coefficients
 
 DEFAULT_OUTPUT_DIR = Path("results") / "synthetic_results"
 DEFAULT_METHODS = "dro,cord,kmeans"
@@ -38,7 +40,7 @@ NOISE_VALUES = tuple(float(value) for value in np.arange(0.1, 2.1, 0.1))
 COMMON_FACTOR_NOISE_RANGE = (1.0, 1.0)
 NO_GLOBAL_FACTOR_RANGE = (0.0, 0.0)
 ADDITIONAL_NOISE_RANGE = (0.1, 0.1)
-METHOD_CHOICES = {"dro", "cord", "kmeans"}
+METHOD_CHOICES = {"dro", "lasso", "sqrt_lasso", "cord", "kmedoids", "kmeans"}
 
 
 def parse_methods(methods: str) -> list[str]:
@@ -78,7 +80,13 @@ def _save_records(records: list[dict[str, int | float | str]], path: Path) -> No
     pd.DataFrame(records).to_csv(path, index=False)
 
 
-def run_method(method: str, samples: np.ndarray, labels: np.ndarray, config: ExperimentConfig, seed: int) -> tuple[float, float]:
+def run_method(
+    method: str,
+    samples: np.ndarray,
+    labels: np.ndarray,
+    config: ExperimentConfig,
+    seed: int,
+) -> tuple[float, float]:
     if method == "dro":
         coefs = compute_dro_coefficients(
             samples,
@@ -88,10 +96,30 @@ def run_method(method: str, samples: np.ndarray, labels: np.ndarray, config: Exp
             max_outer_iterations=config.max_outer_iterations,
         )
         predicted = spectral_clustering(coefs, config.n_clusters, config.n_samples)
+    elif method == "lasso":
+        coefs = compute_lasso_coefficients(samples)
+        predicted = spectral_clustering(coefs, config.n_clusters, config.n_samples)
+    elif method == "sqrt_lasso":
+        coefs = compute_sqrt_lasso_coefficients(
+            samples,
+            alpha=DEFAULT_DRO_ALPHA,
+            n_sim=config.n_simulations,
+            seed=seed,
+            sep=True,
+            n_clusters=config.n_clusters,
+        )
+        predicted = spectral_clustering(coefs, config.n_clusters, config.n_samples)
     elif method == "cord":
         corr = np.corrcoef(samples.T)
-        clusters = cord_clustering(pd.DataFrame(corr), n_clusters=config.n_clusters, min_or_max="min")
+        clusters = cord_clustering(
+            pd.DataFrame(corr),
+            n_clusters=config.n_clusters,
+            min_or_max="min",
+            distinguish_direction=False,
+        )
         predicted = cluster_list_to_membership(clusters)
+    elif method == "kmedoids":
+        predicted = kmedoids_clustering(samples, config.n_clusters)
     elif method == "kmeans":
         predicted = KMeans(n_clusters=config.n_clusters, random_state=0, n_init=10).fit(samples.T).labels_.astype(int)
     else:
@@ -143,7 +171,11 @@ def run_synthetic_suite(args: argparse.Namespace) -> pd.DataFrame:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run source-grounded synthetic DRO subspace clustering experiments.")
-    parser.add_argument("--scenario", choices=["main", "common-factor", "noise", "additional", "all"], default=DEFAULT_SCENARIO)
+    parser.add_argument(
+        "--scenario",
+        choices=["main", "common-factor", "noise", "additional", "all"],
+        default=DEFAULT_SCENARIO,
+    )
     parser.add_argument("--methods", default=DEFAULT_METHODS)
     parser.add_argument("--n-experiments", type=int, default=DEFAULT_N_EXPERIMENTS)
     parser.add_argument("--seed-start", type=int, default=DEFAULT_SEED_START)

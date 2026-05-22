@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 from tqdm.auto import tqdm
 
+from dro_subspace.baselines import kmedoids_clustering
 from dro_subspace.cord import cluster_list_to_membership, cord_clustering
 from dro_subspace.dro import compute_dro_coefficients
 from dro_subspace.experiments import DEFAULT_MAX_OUTER_ITERATIONS, DEFAULT_N_SIMULATIONS
@@ -29,6 +30,7 @@ from dro_subspace.images import (
     standard_subject_splits,
 )
 from dro_subspace.metrics import clustering_score, spectral_clustering
+from dro_subspace.nodewise import compute_lasso_coefficients, compute_sqrt_lasso_coefficients
 
 DEFAULT_DATA_DIR = Path("data") / "external" / "CroppedYalePNG"
 DEFAULT_OUTPUT_DIR = Path("results") / "face_results"
@@ -38,7 +40,7 @@ DEFAULT_RANDOM_SEED_START = 2024
 DEFAULT_RANDOM_TRIALS = 20
 DEFAULT_SUBJECT_COUNT = 10
 DEFAULT_DRO_ALPHA = 0.05
-METHOD_CHOICES = {"dro", "cord"}
+METHOD_CHOICES = {"dro", "lasso", "sqrt_lasso", "cord", "kmedoids"}
 
 
 def parse_methods(methods: str) -> list[str]:
@@ -91,10 +93,30 @@ def run_method(
             max_outer_iterations=max_outer_iterations,
         )
         predicted = spectral_clustering(coefs, n_clusters, samples.shape[0])
+    elif method == "lasso":
+        coefs = compute_lasso_coefficients(samples)
+        predicted = spectral_clustering(coefs, n_clusters, samples.shape[0])
+    elif method == "sqrt_lasso":
+        coefs = compute_sqrt_lasso_coefficients(
+            samples,
+            alpha=DEFAULT_DRO_ALPHA,
+            n_sim=n_simulations,
+            seed=seed,
+            sep=True,
+            n_clusters=n_clusters,
+        )
+        predicted = spectral_clustering(coefs, n_clusters, samples.shape[0])
     elif method == "cord":
         corr = np.corrcoef(samples.T)
-        clusters = cord_clustering(pd.DataFrame(corr), n_clusters=n_clusters, min_or_max="min")
+        clusters = cord_clustering(
+            pd.DataFrame(corr),
+            n_clusters=n_clusters,
+            min_or_max="min",
+            distinguish_direction=False,
+        )
         predicted = cluster_list_to_membership(clusters)
+    elif method == "kmedoids":
+        predicted = kmedoids_clustering(samples, n_clusters)
     else:
         raise ValueError(f"Unsupported method: {method}.")
     score = clustering_score(labels, predicted)
