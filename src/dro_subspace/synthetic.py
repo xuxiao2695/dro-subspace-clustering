@@ -101,10 +101,10 @@ def sample_random_subspace(
         if sizes[cluster_idx] == 0:
             continue
         if n_group_factors is None:
-            max_allowed = min(int(sizes[cluster_idx]), max_factors)
-            if max_allowed < min_factors:
+            upper_exclusive = min(int(sizes[cluster_idx]), max_factors)
+            if upper_exclusive <= min_factors:
                 raise ValueError("n_group_factors_range is incompatible with at least one non-empty cluster.")
-            n_factors = int(rng.randint(min_factors, max_allowed + 1))
+            n_factors = int(rng.randint(max(1, min_factors), upper_exclusive))
         else:
             n_factors = int(factor_counts[cluster_idx])
         factor_indices = rng.choice(np.arange(factors.shape[1], dtype=int), size=n_factors, replace=False)

@@ -6,14 +6,18 @@ POS: Package API boundary.
 NOTE: Update this header and the folder's _MANIFEST.md explicitly if logic changes.
 """
 
+from dro_subspace.cord import cluster_list_to_membership, cord_clustering, compute_cord_values
 from dro_subspace.dro import compute_dro_coefficients, dro_sqrt_delta, spectral_regression_admm
 from dro_subspace.metrics import ClusteringScore, clustering_score, spectral_clustering
 from dro_subspace.synthetic import make_cluster_labels, normalize_design, sample_cluster_sizes, sample_random_subspace
 
 __all__ = [
     "ClusteringScore",
+    "cluster_list_to_membership",
     "clustering_score",
     "compute_dro_coefficients",
+    "compute_cord_values",
+    "cord_clustering",
     "dro_sqrt_delta",
     "make_cluster_labels",
     "normalize_design",

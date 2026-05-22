@@ -11,6 +11,7 @@ from __future__ import annotations
 import numpy as np
 
 from dro_subspace.dro import compute_dro_coefficients, dro_sqrt_delta
+from dro_subspace.cord import cluster_list_to_membership, cord_clustering, compute_cord_values
 from dro_subspace.metrics import clustering_score
 from dro_subspace.synthetic import make_cluster_labels, normalize_design, sample_random_subspace
 
@@ -70,3 +71,21 @@ def test_dro_delta_is_seeded_and_coefficients_have_zero_diagonal() -> None:
     assert first_delta > 0.0
     assert coefs.shape == (6, 6)
     assert np.allclose(np.diag(coefs), 0.0)
+
+
+def test_cord_clustering_assigns_every_item() -> None:
+    corr = np.array(
+        [
+            [1.0, 0.9, 0.1, 0.0],
+            [0.9, 1.0, 0.2, 0.1],
+            [0.1, 0.2, 1.0, 0.8],
+            [0.0, 0.1, 0.8, 1.0],
+        ]
+    )
+    cord, diff = compute_cord_values(corr)
+    clusters = cord_clustering(corr, n_clusters=2)
+    membership = cluster_list_to_membership(clusters)
+    assert cord.shape == (4, 4)
+    assert diff.shape == (4, 4, 4)
+    assert membership.shape == (4,)
+    assert set(membership.tolist()) == {0, 1}

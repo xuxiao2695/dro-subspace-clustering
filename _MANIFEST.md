@@ -5,6 +5,7 @@ Release-ready ICML artifact skeleton: install metadata, README, code, data links
 - `pyproject.toml`: package metadata and dependency declaration.
 - `requirements.txt`: pip-compatible dependency list.
 - `data/`: external dataset links and local placement guidance.
+- `docs/`: reproducibility matrix and experiment coverage notes.
 - `results/`: small checked-in summary outputs only.
 - `scripts/`: command-line reproduction entry points.
 - `src/`: importable Python package.
