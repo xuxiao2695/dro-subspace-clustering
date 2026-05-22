@@ -17,7 +17,7 @@ import pandas as pd
 from sklearn.cluster import KMeans
 from tqdm.auto import tqdm
 
-from dro_subspace.baselines import kmedoids_clustering
+from dro_subspace.baselines import kmedoids_clustering, multifactor_clustering
 from dro_subspace.cord import cluster_list_to_membership, cord_clustering
 from dro_subspace.dro import compute_dro_coefficients
 from dro_subspace.experiments import (
@@ -40,7 +40,7 @@ NOISE_VALUES = tuple(float(value) for value in np.arange(0.1, 2.1, 0.1))
 COMMON_FACTOR_NOISE_RANGE = (1.0, 1.0)
 NO_GLOBAL_FACTOR_RANGE = (0.0, 0.0)
 ADDITIONAL_NOISE_RANGE = (0.1, 0.1)
-METHOD_CHOICES = {"dro", "lasso", "sqrt_lasso", "cord", "kmedoids", "kmeans"}
+METHOD_CHOICES = {"dro", "lasso", "sqrt_lasso", "cord", "mfc", "kmedoids", "kmeans"}
 
 
 def parse_methods(methods: str) -> list[str]:
@@ -118,6 +118,8 @@ def run_method(
             distinguish_direction=False,
         )
         predicted = cluster_list_to_membership(clusters)
+    elif method == "mfc":
+        predicted = multifactor_clustering(samples, config.n_clusters)
     elif method == "kmedoids":
         predicted = kmedoids_clustering(samples, config.n_clusters)
     elif method == "kmeans":

@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from tqdm.auto import tqdm
 
-from dro_subspace.baselines import kmedoids_clustering
+from dro_subspace.baselines import kmedoids_clustering, multifactor_clustering
 from dro_subspace.cord import cluster_list_to_membership, cord_clustering
 from dro_subspace.dro import compute_dro_coefficients
 from dro_subspace.experiments import DEFAULT_MAX_OUTER_ITERATIONS, DEFAULT_N_SIMULATIONS
@@ -40,7 +40,7 @@ DEFAULT_RANDOM_SEED_START = 2024
 DEFAULT_RANDOM_TRIALS = 20
 DEFAULT_SUBJECT_COUNT = 10
 DEFAULT_DRO_ALPHA = 0.05
-METHOD_CHOICES = {"dro", "lasso", "sqrt_lasso", "cord", "kmedoids"}
+METHOD_CHOICES = {"dro", "lasso", "sqrt_lasso", "cord", "mfc", "kmedoids"}
 
 
 def parse_methods(methods: str) -> list[str]:
@@ -115,6 +115,8 @@ def run_method(
             distinguish_direction=False,
         )
         predicted = cluster_list_to_membership(clusters)
+    elif method == "mfc":
+        predicted = multifactor_clustering(samples, n_clusters)
     elif method == "kmedoids":
         predicted = kmedoids_clustering(samples, n_clusters)
     else:

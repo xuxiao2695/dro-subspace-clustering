@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from dro_subspace.dro import compute_dro_coefficients, dro_sqrt_delta
+from dro_subspace.baselines import multifactor_clustering
 from dro_subspace.cord import cluster_list_to_membership, cord_clustering, compute_cord_values
+from dro_subspace.dro import compute_dro_coefficients, dro_sqrt_delta
 from dro_subspace.metrics import clustering_score
 from dro_subspace.synthetic import make_cluster_labels, normalize_design, sample_random_subspace
 
@@ -104,3 +105,26 @@ def test_cord_signed_distance_matches_modified_acc_rule() -> None:
     signed, _ = compute_cord_values(corr, distinguish_direction=False)
     assert signed.loc[0, 1] < directional.loc[0, 1]
     assert signed.loc[0, 1] == 0.0
+
+
+def test_multifactor_clustering_assigns_every_item() -> None:
+    samples = np.array(
+        [
+            [1.0, 1.1, 0.0, 0.1],
+            [0.9, 1.0, 0.1, 0.0],
+            [1.1, 0.9, -0.1, 0.0],
+            [0.0, 0.1, 1.0, 0.9],
+            [0.1, 0.0, 0.9, 1.1],
+            [-0.1, 0.0, 1.1, 1.0],
+        ]
+    )
+    predicted = multifactor_clustering(
+        samples,
+        n_clusters=2,
+        n_factors_global=0,
+        n_factors_local=1,
+        n_iter=3,
+    )
+    score = clustering_score(np.array([0, 0, 1, 1]), predicted)
+    assert predicted.shape == (4,)
+    assert score.accuracy == 1.0

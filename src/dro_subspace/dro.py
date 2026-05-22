@@ -139,7 +139,6 @@ def gradient_descent(
     dim = samples.shape[1]
     coefs = np.zeros((dim, dim))
     velocity = np.zeros_like(coefs)
-    best_coefs = coefs.copy()
     best_objective = np.inf
 
     for restart_idx in range(max_restarts + 1):
@@ -152,7 +151,6 @@ def gradient_descent(
                 break
             if objective < best_objective:
                 best_objective = objective
-                best_coefs = coefs.copy()
             if objective > previous_objective:
                 current_learning_rate *= np.exp(-learning_rate_decay)
             velocity = nesterov_gamma * velocity + current_learning_rate * gradient

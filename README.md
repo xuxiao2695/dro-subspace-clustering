@@ -2,7 +2,7 @@
 
 Reference code for the ICML submission on distributionally robust subspace clustering.
 The repository contains the synthetic-data generator, DRO spectral self-regression solver,
-source-grounded baseline helpers, clustering metrics, and compact reproduction scripts.
+source-grounded baseline helpers including MFC, clustering metrics, and compact reproduction scripts.
 
 ## Setup
 
@@ -23,7 +23,7 @@ pip install -e ".[baselines]"
 ```bash
 python scripts/run_ablation_studies.py --ablation all --n-experiments 10
 python scripts/run_synthetic_experiments.py --scenario main --n-experiments 10
-python scripts/run_synthetic_experiments.py --scenario main --methods dro,lasso,cord,kmedoids
+python scripts/run_synthetic_experiments.py --scenario main --methods dro,lasso,mfc,cord,kmedoids
 python scripts/run_face_experiments.py --data-dir data/external/CroppedYalePNG
 ```
 
